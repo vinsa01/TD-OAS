@@ -1,0 +1,163 @@
+openapi: 3.0.3
+info:
+  title: TD OpenAPI Specification - Fédération Agricole (Finale)
+  description: Gestion des collectivités, admissions (v2), trésorerie et statistiques nationales.
+  version: 1.1.0
+
+servers:
+  - url: 'http://localhost:8000'
+
+paths:
+  /collectivites:
+    post:
+      summary: Ouverture d'une nouvelle collectivité
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectiviteOuverture'
+      responses:
+        '201':
+          description: Collectivité créée avec succès
+
+  /collectivites/{id}/admissions:
+    post:
+      summary: Admission d'un nouveau membre (Version B-2)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandeAdmission'
+      responses:
+        '201':
+          description: Membre admis et frais réglés
+        '403':
+          description: Refusé - Conditions de parrainage ou paiement non remplies
+
+  /collectivites/{id}/comptes:
+    get:
+      summary: Situation de trésorerie de la collectivité
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Liste des comptes (Caisse, Banque, Mobile Money)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Compte'
+
+  /federation/statistiques:
+    get:
+      summary: Rapport global mensuel et annuel de la fédération (Fonctionnalité H)
+      parameters:
+        - $ref: '#/components/parameters/DateDebutQuery'
+        - $ref: '#/components/parameters/DateFinQuery'
+      responses:
+        '200':
+          description: Statistiques consolidées par collectivité
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatistiquesFederation'
+
+components:
+  parameters:
+    DateDebutQuery:
+      in: query
+      name: start_date
+      schema:
+        type: string
+        format: date
+      required: true
+    DateFinQuery:
+      in: query
+      name: end_date
+      schema:
+        type: string
+        format: date
+      required: true
+
+  schemas:
+    CollectiviteOuverture:
+      type: object
+      properties:
+        nom:
+          type: string
+          example: "Collectivité Boeny"
+        ville:
+          type: string
+          example: "Mahajanga"
+        specialite:
+          type: string
+          example: "Riziculture"
+
+    DemandeAdmission:
+      type: object
+      properties:
+        nom:
+          type: string
+          example: "Andrianina"
+        prenoms:
+          type: string
+          example: "Tahina"
+        parrains:
+          type: array
+          items:
+            type: object
+            properties:
+              membre_id:
+                type: integer
+              relation:
+                type: string
+                example: "Collègue"
+        paiement:
+          type: number
+          description: Frais (50k) + Cotisation annuelle
+          example: 250000.0
+
+    Compte:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [CAISSE, BANQUE, MOBILE_MONEY]
+        solde:
+          type: number
+          example: 1500000.0
+        rib:
+          type: string
+          description: "Format 23 chiffres (BBBBB GGGGG CCCCCCCCCCC KK)"
+          example: "12345678901234567890123"
+
+    StatistiquesFederation:
+      type: object
+      properties:
+        collectivite_id:
+          type: integer
+        taux_assiduite_global:
+          type: number
+          format: float
+          example: 85.5
+        membres_a_jour_pourcentage:
+          type: number
+          example: 92.0
+        nouveaux_adherents:
+          type: integer
+          example: 14
