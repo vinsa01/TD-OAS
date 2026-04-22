@@ -23,5 +23,10 @@ public class MemberController {
     public ResponseEntity<List<MemberDto>> createMembers(@RequestBody List<CreateMemberDto> requests) {
         List<MemberDto> created = memberService.createMembers(requests);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
+
+        @PostMapping("/{id}/payments")
+        public void makePayments(@PathVariable String id, @RequestBody List<CreateMemberPaymentDto> payments) {
+            financialService.processPayments(id, payments);
+        }
     }
 }

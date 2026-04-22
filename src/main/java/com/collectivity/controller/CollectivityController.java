@@ -33,5 +33,13 @@ public class CollectivityController {
 
         CollectivityDto updated = collectivityService.assignIdentification(collectivityId, identification);
         return ResponseEntity.ok(updated);
+        @GetMapping("/{id}/transactions")
+        public List<CollectivityTransactionEntity> getTransactions(
+                @PathVariable String id,
+                @RequestParam LocalDate from,
+                @RequestParam LocalDate to) {
+            return financialService.getTransactions(id, from, to);
+    }
+
     }
 }
