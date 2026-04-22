@@ -18,7 +18,7 @@ public class CollectivityEntity {
     @Column(name = "member_id")
     private List<String> memberIds;
 
-    // Structure (Stored as IDs to keep it simple for your L2 level)
+    
     private String presidentId;
     private String vicePresidentId;
     private String treasurerId;
@@ -26,7 +26,7 @@ public class CollectivityEntity {
 
     public CollectivityEntity() {}
 
-    // Getters and Setters
+    
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     public String getLocation() { return location; }
