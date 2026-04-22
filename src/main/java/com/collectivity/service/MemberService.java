@@ -10,8 +10,10 @@ import com.collectivity.exception.BadRequestException;
 import com.collectivity.exception.ResourceNotFoundException;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class MemberService {
@@ -34,58 +36,71 @@ public class MemberService {
     }
 
     private MemberDto createMember(CreateMemberDto request) {
-        // Validate collectivity exists
+      
         if (request.getCollectivityIdentifier() != null
                 && !collectivityRepository.existsById(request.getCollectivityIdentifier())) {
             throw new ResourceNotFoundException(
                     "Collectivity not found: " + request.getCollectivityIdentifier());
         }
 
-        // Validate referees exist
         List<String> refereeIds = request.getReferees();
-        if (refereeIds != null) {
-            for (String refereeId : refereeIds) {
-                if (!memberRepository.existsById(refereeId)) {
-                    throw new ResourceNotFoundException("Referee member not found: " + refereeId);
-                }
-            }
-        } else {
+        if (refereeIds == null || refereeIds.size() < 2) {
             throw new BadRequestException("Member must have at least two referees.");
         }
 
-        if (refereeIds.size() < 2) {
-            throw new BadRequestException("Member must have at least two referees.");
+     
+        List<MemberEntity> refereesInDb = memberRepository.findAllById(refereeIds);
+        if (refereesInDb.size() != refereeIds.size()) {
+            throw new ResourceNotFoundException("One or more referees not found in database.");
         }
 
-        // Validate payment
-        if (!request.isRegistrationFeePaid()) {
-            throw new BadRequestException("Registration fee has not been paid.");
-        }
-        if (!request.isMembershipDuesPaid()) {
-            throw new BadRequestException("Membership dues have not been paid.");
+        long localReferees = refereesInDb.stream()
+                .filter(r -> r.getCollectivityIdentifier() != null && 
+                        r.getCollectivityIdentifier().equals(request.getCollectivityIdentifier()))
+                .count();
+        
+        long externalReferees = refereesInDb.size() - localReferees;
+
+        if (localReferees < externalReferees) {
+            throw new BadRequestException("Rule B-2 violation: Local referees must be >= external referees.");
         }
 
-        // Build and persist entity
+     
+        if (!request.isRegistrationFeePaid() || !request.isMembershipDuesPaid()) {
+            throw new BadRequestException("All fees (registration and membership) must be paid.");
+        }
+
+      
         MemberEntity entity = toEntity(request);
+        entity.setId(UUID.randomUUID().toString());
         entity.setRefereeIds(refereeIds);
         entity.setCollectivityIdentifier(request.getCollectivityIdentifier());
+        
+        entity.setJoinDate(LocalDate.now()); 
+
         entity = memberRepository.save(entity);
 
         return toDto(entity);
     }
 
+  
+
     public MemberDto toDto(MemberEntity entity) {
         MemberDto dto = new MemberDto();
         dto.setId(entity.getId());
+        
+       
         copyInfo(entity, dto);
 
         List<MemberDto> refereeDtos = new ArrayList<>();
         if (entity.getRefereeIds() != null) {
             for (String refereeId : entity.getRefereeIds()) {
-                memberRepository.findById(refereeId).ifPresent(ref -> refereeDtos.add(toDto(ref)));
+                memberRepository.findById(refereeId)
+                        .ifPresent(ref -> refereeDtos.add(toSimpleDto(ref)));
             }
         }
         dto.setReferees(refereeDtos);
+        
         return dto;
     }
 
@@ -113,5 +128,12 @@ public class MemberService {
         dto.setPhoneNumber(entity.getPhoneNumber());
         dto.setEmail(entity.getEmail());
         dto.setOccupation(entity.getOccupation());
+    }
+
+    private MemberDto toSimpleDto(MemberEntity entity) {
+        MemberDto dto = new MemberDto();
+        dto.setId(entity.getId());
+        copyInfo(entity, dto);
+        return dto;
     }
 }
