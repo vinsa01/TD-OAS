@@ -1,24 +1,41 @@
 package com.collectivity.entity;
 
+import jakarta.persistence.*; 
 import java.time.LocalDate;
 import java.util.List;
 
+@Entity
+@Table(name = "member")
 public class MemberEntity {
 
+    @Id
     private String id;
+    
     private String firstName;
     private String lastName;
     private LocalDate birthDate;
+
+    @Enumerated(EnumType.STRING)
     private Gender gender;
+
     private String address;
     private String profession;
     private int phoneNumber;
     private String email;
+
+    @Enumerated(EnumType.STRING)
     private MemberOccupation occupation;
+
     private String collectivityIdentifier;
+
+    @ElementCollection 
     private List<String> refereeIds;
 
+    
+    private LocalDate joinDate;
+
     public MemberEntity() {}
+
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -44,4 +61,6 @@ public class MemberEntity {
     public void setCollectivityIdentifier(String collectivityIdentifier) { this.collectivityIdentifier = collectivityIdentifier; }
     public List<String> getRefereeIds() { return refereeIds; }
     public void setRefereeIds(List<String> refereeIds) { this.refereeIds = refereeIds; }
+    public LocalDate getJoinDate() { return joinDate; }
+    public void setJoinDate(LocalDate joinDate) { this.joinDate = joinDate; }
 }
