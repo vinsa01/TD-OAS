@@ -1,41 +1,17 @@
 package com.collectivity.datasource;
 
 import com.collectivity.entity.MemberEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.*;
+import java.time.LocalDate;
+import java.util.List;
 
 @Repository
-public class MemberRepository {
+public interface MemberRepository extends JpaRepository<MemberEntity, String> {
+    
+  
+    List<MemberEntity> findAllByIdInAndJoinDateBefore(List<String> ids, LocalDate date);
 
-    private final Map<String, MemberEntity> store = new HashMap<>();
-
-    public MemberEntity save(MemberEntity member) {
-        if (member.getId() == null) {
-            member.setId(UUID.randomUUID().toString());
-        }
-        store.put(member.getId(), member);
-        return member;
-    }
-
-    public Optional<MemberEntity> findById(String id) {
-        return Optional.ofNullable(store.get(id));
-    }
-
-    public List<MemberEntity> findAllById(List<String> ids) {
-        List<MemberEntity> result = new ArrayList<>();
-        for (String id : ids) {
-            MemberEntity entity = store.get(id);
-            if (entity != null) result.add(entity);
-        }
-        return result;
-    }
-
-    public boolean existsById(String id) {
-        return store.containsKey(id);
-    }
-
-    public List<MemberEntity> findAll() {
-        return new ArrayList<>(store.values());
-    }
+    
 }
