@@ -29,6 +29,11 @@ public class CollectivityService {
         this.memberRepository = memberRepository;
         this.memberService = memberService;
     }
+    public CollectivityDto getCollectivityById(String id) {
+        CollectivityEntity entity = collectivityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Collectivity not found with id: " + id));
+        return toDto(entity);
+    }
 
     public List<CollectivityDto> createCollectivities(List<CreateCollectivityDto> requests) {
         return requests.stream()
@@ -37,19 +42,21 @@ public class CollectivityService {
     }
 
     private CollectivityDto createCollectivity(CreateCollectivityDto request) {
-        // 1. Check Federation Approval
         if (!request.isFederationApproval()) {
             throw new BadRequestException("Collectivity must have federation approval.");
         }
 
-        // 2. Rule A: Total members count check (Min 10)
         List<String> memberIds = request.getMembers() != null ? request.getMembers() : new ArrayList<>();
         if (memberIds.size() < 10) {
             throw new BadRequestException("Rule A Violation: A collectivity must have at least 10 members.");
         }
 
-        // 3. Rule A: Seniority check (At least 5 members with 6 months)
         List<MemberEntity> membersInDb = memberRepository.findAllById(memberIds);
+        
+        if (membersInDb.size() != memberIds.size()) {
+            throw new BadRequestException("Some member IDs provided do not exist in database.");
+        }
+
         LocalDate sixMonthsAgo = LocalDate.now().minusMonths(6);
         long seniorMembersCount = membersInDb.stream()
                 .filter(m -> m.getJoinDate() != null && m.getJoinDate().isBefore(sixMonthsAgo))
@@ -59,19 +66,16 @@ public class CollectivityService {
             throw new BadRequestException("Rule A Violation: At least 5 members must have 6 months of seniority.");
         }
 
-        // 4. Structure validation
         CreateCollectivityStructureDto structure = request.getStructure();
         if (structure == null || isStructureIncomplete(structure)) {
             throw new BadRequestException("Collectivity structure is missing or incomplete.");
         }
 
-        // Validate that all structure members exist
         resolveOrThrow(structure.getPresident(), "President");
         resolveOrThrow(structure.getVicePresident(), "Vice-president");
         resolveOrThrow(structure.getTreasurer(), "Treasurer");
         resolveOrThrow(structure.getSecretary(), "Secretary");
 
-        // 5. Persist Entity
         CollectivityEntity entity = new CollectivityEntity();
         entity.setId(UUID.randomUUID().toString());
         entity.setLocation(request.getLocation());
@@ -85,12 +89,10 @@ public class CollectivityService {
         return toDto(collectivityRepository.save(entity));
     }
 
-    // --- FUNCTIONALITY J : Assign unique name and number ---
     public CollectivityDto assignIdentification(String id, CollectivityIdentificationDto identification) {
         CollectivityEntity entity = collectivityRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Collectivity not found with id: " + id));
 
-        // CRITICAL RULE J: Immutable once assigned
         if (entity.getUniqueName() != null || entity.getUniqueNumber() != null) {
             throw new BadRequestException("Identification is already assigned and cannot be modified.");
         }
@@ -115,12 +117,9 @@ public class CollectivityService {
         CollectivityDto dto = new CollectivityDto();
         dto.setId(entity.getId());
         dto.setLocation(entity.getLocation());
-
-        // Map unique fields (Functionality J)
         dto.setUniqueName(entity.getUniqueName());
         dto.setUniqueNumber(entity.getUniqueNumber());
 
-        // Map Structure
         CollectivityStructureDto structureDto = new CollectivityStructureDto();
         structureDto.setPresident(memberService.toDto(resolveOrThrow(entity.getPresidentId(), "President")));
         structureDto.setVicePresident(memberService.toDto(resolveOrThrow(entity.getVicePresidentId(), "Vice-president")));
@@ -128,13 +127,8 @@ public class CollectivityService {
         structureDto.setSecretary(memberService.toDto(resolveOrThrow(entity.getSecretaryId(), "Secretary")));
         dto.setStructure(structureDto);
 
-        // Map Members list
-        List<MemberDto> memberDtos = entity.getMemberIds().stream()
-                .map(mId -> memberRepository.findById(mId).orElse(null))
-                .filter(m -> m != null)
-                .map(memberService::toDto)
-                .collect(Collectors.toList());
-        dto.setMembers(memberDtos);
+        List<MemberEntity> members = memberRepository.findAllById(entity.getMemberIds());
+        dto.setMembers(members.stream().map(memberService::toDto).collect(Collectors.toList()));
 
         return dto;
     }
