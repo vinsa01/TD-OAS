@@ -138,4 +138,11 @@ public class CollectivityService {
 
         return dto;
     }
+    public CollectivityDto getCollectivityById(String id) {
+        CollectivityEntity entity = collectivityRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Collectivity not found"));
+
+     
+        return toDto(entity);
+    }
 }
