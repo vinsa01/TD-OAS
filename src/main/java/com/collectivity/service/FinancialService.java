@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map; //
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -50,7 +51,6 @@ public class FinancialService {
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found"));
 
         for (CreateMemberPaymentDto p : payments) {
-            // Création de la transaction pour la collectivité
             CollectivityTransactionEntity tx = new CollectivityTransactionEntity();
             tx.setId(UUID.randomUUID().toString());
             tx.setAmount(p.getAmount().doubleValue());
@@ -64,8 +64,26 @@ public class FinancialService {
         }
     }
 
-
     public List<CollectivityTransactionEntity> getTransactions(String collectivityId, LocalDate from, LocalDate to) {
         return transactionRepository.findByCollectivityIdAndCreationDateBetween(collectivityId, from, to);
+    }
+
+    public List<FinancialAccountDto> getAccountsWithBalance(String collectivityId, LocalDate atDate) {
+
+        List<CollectivityTransactionEntity> transactions = transactionRepository
+                .findByCollectivityIdAndCreationDateBefore(collectivityId, atDate.plusDays(1));
+
+        Map<String, Double> balances = transactions.stream()
+                .collect(Collectors.groupingBy(
+                        CollectivityTransactionEntity::getAccountCreditedId,
+                        Collectors.summingDouble(CollectivityTransactionEntity::getAmount)
+                ));
+
+        return balances.entrySet().stream().map(entry -> {
+            FinancialAccountDto dto = new FinancialAccountDto();
+            dto.setId(entry.getKey());
+            dto.setAmount(entry.getValue()); // Note : vérifie que le DTO accepte Double
+            return dto;
+        }).collect(Collectors.toList());
     }
 }
