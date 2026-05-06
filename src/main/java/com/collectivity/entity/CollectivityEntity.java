@@ -13,7 +13,7 @@ public class CollectivityEntity {
     private String location;
     private boolean federationApproval;
 
-    // Fonctionnalité J : Attribués par la fédération
+
     private String uniqueName;
     private String uniqueNumber;
 
@@ -29,7 +29,6 @@ public class CollectivityEntity {
 
     public CollectivityEntity() {}
 
-    // --- GETTERS AND SETTERS ---
 
     public String getId() {
         return id;
